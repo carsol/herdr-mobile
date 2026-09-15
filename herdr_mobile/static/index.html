@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#141823">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Herdr</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/static/icon.svg">
+<link rel="apple-touch-icon" href="/static/icon-180.png">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="top">
+  <h1>Herdr <span class="sub" id="sub">connecting…</span></h1>
+  <button class="ibtn" id="refresh" title="Refresh">↻</button>
+</header>
+<main class="list" id="list"><div class="empty">Loading…</div></main>
+<button class="fab" id="new" title="New session">+</button>
+
+<div class="sheet-bg" id="sheet" hidden>
+  <form class="sheet" id="newForm">
+    <h2>New session</h2>
+    <div><label>Directory</label><input name="cwd" id="cwd" list="projects" placeholder="~/code/project" autocapitalize="off" autocorrect="off" required><datalist id="projects"></datalist></div>
+    <div class="row">
+      <div><label>Agent</label><select name="kind" id="kind"></select></div>
+      <div><label>Name</label><input name="name" id="name" placeholder="optional" autocapitalize="off"></div>
+    </div>
+    <div><label>Extra args</label><input name="args" placeholder="--model … (optional)" autocapitalize="off" autocorrect="off"></div>
+    <label class="check"><input type="checkbox" name="yolo" id="yolo"> Skip permission prompts</label>
+    <div class="err" id="err"></div>
+    <div class="row"><button type="button" class="btn" id="cancel">Cancel</button><button type="submit" class="btn primary">Start</button></div>
+  </form>
+</div>
+
+<script src="/static/app.js"></script>
+<script>
+const list = $("#list"), sub = $("#sub");
+let lastJson = "";
+
+function card(p) {
+  const view = viewPref.get(p.pane_id) || (p.agent ? "chat" : "pane");
+  const href = `/${view === "chat" && (p.agent === "claude" || p.agent === "codex") ? "chat" : "pane"}/${encodeURIComponent(p.pane_id)}`;
+  const name = p.name || p.project || p.pane_id;
+  const meta = [p.display_agent || p.agent || "shell", p.project, p.title].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(" · ");
+  return `<a class="card" href="${href}">
+    <div class="avatar">${esc(agentIcon(p.agent))}<span class="dot ${esc(p.status)}"></span></div>
+    <div class="body"><div class="name">${esc(name)}</div><div class="meta">${esc(meta)}</div></div>
+    <span class="pill ${esc(p.status)}">${esc(p.status)}</span>
+  </a>`;
+}
+
+async function refresh() {
+  try {
+    const { panes } = await api("/api/panes");
+    const json = JSON.stringify(panes);
+    if (json === lastJson) return;
+    lastJson = json;
+    sub.textContent = `${panes.length} pane${panes.length === 1 ? "" : "s"}`;
+    if (!panes.length) { list.innerHTML = `<div class="empty">No panes yet.<br>Tap + to start an agent.</div>`; return; }
+    const groups = new Map();
+    for (const p of panes) (groups.get(p.workspace) || groups.set(p.workspace, []).get(p.workspace)).push(p);
+    list.innerHTML = [...groups].map(([ws, ps]) => `<div class="group">${esc(ws)}</div>` + ps.map(card).join("")).join("");
+  } catch (e) { sub.textContent = e.message; }
+}
+$("#refresh").onclick = refresh;
+refresh();
+setInterval(() => document.visibilityState === "visible" && refresh(), 3000);
+document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && refresh());
+
+/* New-session sheet */
+const sheet = $("#sheet");
+$("#new").onclick = async () => {
+  sheet.hidden = false; $("#err").textContent = "";
+  const { projects, kinds } = await api("/api/projects");
+  $("#projects").innerHTML = projects.map((p) => `<option value="${esc(p.path)}">${esc(p.name)}</option>`).join("");
+  if (!$("#kind").options.length) $("#kind").innerHTML = kinds.map((k) => `<option ${k === "claude" ? "selected" : ""}>${esc(k)}</option>`).join("");
+  setTimeout(() => $("#cwd").focus(), 50);
+};
+$("#cancel").onclick = () => (sheet.hidden = true);
+sheet.addEventListener("click", (e) => e.target === sheet && (sheet.hidden = true));
+$("#newForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const f = new FormData(e.target);
+  const body = Object.fromEntries(f.entries()); body.yolo = f.get("yolo") === "on";
+  const btn = e.target.querySelector("[type=submit]"); btn.disabled = true;
+  try {
+    const { pane_id } = await api("/api/panes", { method: "POST", body });
+    location.href = `/pane/${encodeURIComponent(pane_id)}`;
+  } catch (err) { $("#err").textContent = err.message; }
+  finally { btn.disabled = false; }
+};
+</script>
+</body>
+</html>

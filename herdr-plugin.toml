@@ -1,0 +1,25 @@
+id = "herdr-mobile"
+name = "Herdr Mobile"
+version = "0.1.0"
+min_herdr_version = "0.8.0"
+description = "Mobile-first web UI: agents, terminals and chat from your phone."
+platforms = ["linux", "macos"]
+
+# Launches the web UI in the background when the Herdr server starts.
+# Configure via the plugin config dir (`herdr plugin config-dir herdr-mobile`):
+# drop an `env` file there with HERDR_MOBILE_HOST / PORT / PASSCODE lines.
+[[startup]]
+command = ["sh", "scripts/plugin-start.sh"]
+
+[[actions]]
+id = "url"
+title = "Show mobile URL"
+description = "Show where the mobile UI is listening"
+contexts = ["global"]
+command = ["sh", "scripts/plugin-url.sh"]
+
+[[actions]]
+id = "restart"
+title = "Restart mobile UI"
+contexts = ["global"]
+command = ["sh", "scripts/plugin-start.sh", "--restart"]

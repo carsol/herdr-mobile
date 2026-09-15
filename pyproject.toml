@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "herdr-mobile"
+version = "0.1.0"
+description = "Mobile-first web UI for Herdr: see your agents, attach to panes, chat with Claude Code and Codex from your phone."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+keywords = ["herdr", "terminal", "claude-code", "codex", "mobile", "pwa"]
+classifiers = [
+  "Environment :: Web Environment",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Topic :: Terminals",
+]
+
+[project.urls]
+Homepage = "https://github.com/carsol/herdr-mobile"
+Repository = "https://github.com/carsol/herdr-mobile"
+Issues = "https://github.com/carsol/herdr-mobile/issues"
+
+[project.scripts]
+herdr-mobile = "herdr_mobile.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["herdr_mobile*"]
+
+[tool.setuptools.package-data]
+herdr_mobile = ["static/*", "static/vendor/*"]

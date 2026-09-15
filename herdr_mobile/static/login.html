@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#141823">
+<title>Herdr</title>
+<link rel="icon" href="/static/icon.svg">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<form class="login" method="post" action="/login">
+  <h1>Herdr</h1>
+  <input type="password" name="passcode" placeholder="passcode" inputmode="numeric" autofocus autocomplete="current-password">
+  <button class="btn primary" type="submit">Unlock</button>
+  <div class="err" id="err"></div>
+</form>
+<script>if (location.search.includes("bad")) document.getElementById("err").textContent = "Wrong passcode";</script>
+</body>
+</html>

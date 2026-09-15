@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#141823">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Herdr</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/static/icon.svg">
+<link rel="stylesheet" href="/static/vendor/xterm.css">
+<link rel="stylesheet" href="/static/app.css">
+<style>body { height: 100dvh; overflow: hidden; }</style>
+</head>
+<body>
+<header class="top">
+  <a class="ibtn" href="/" title="Back">‹</a>
+  <h1 id="title">…<span class="sub" id="sub"></span></h1>
+  <a class="ibtn" id="chatBtn" title="Chat view" hidden>💬</a>
+  <button class="ibtn" id="fontBtn" title="Font size">Aa</button>
+  <button class="ibtn" id="closeBtn" title="Close pane">✕</button>
+</header>
+<div class="term-wrap"><div id="term"></div></div>
+<div class="composer">
+  <div class="keys">
+    <button data-key="Escape">esc</button>
+    <button data-key="Tab">tab</button>
+    <button data-key="Up">↑</button>
+    <button data-key="Down">↓</button>
+    <button data-key="Left">←</button>
+    <button data-key="Right">→</button>
+    <button data-key="Enter">⏎</button>
+    <button data-key="C-c">^C</button>
+    <button data-key="C-d">^D</button>
+    <button data-key="C-r">^R</button>
+    <button data-key="PageUp">pgup</button>
+    <button data-key="PageDown">pgdn</button>
+  </div>
+  <div class="prompt">
+    <textarea id="prompt" rows="1" placeholder="Type a prompt… (⏎ sends on desktop)" autocapitalize="off" autocorrect="off"></textarea>
+    <button class="send" id="send">↑</button>
+  </div>
+</div>
+
+<script src="/static/vendor/xterm.js"></script>
+<script src="/static/vendor/addon-fit.js"></script>
+<script src="/static/app.js"></script>
+<script>
+const paneId = paneFromPath();
+viewPref.set(paneId, "pane");
+wireComposer(paneId);
+$("#closeBtn").onclick = () => closePane(paneId);
+
+let fontSize = +(localStorage.getItem("fontSize") || (innerWidth < 500 ? 12 : 14));
+const term = new Terminal({ fontSize, fontFamily: "ui-monospace, Menlo, Consolas, monospace", cursorBlink: true,
+  scrollback: 5000, allowProposedApi: true, theme: { background: "#000000" } });
+const fit = new FitAddon.FitAddon();
+term.loadAddon(fit);
+term.open($("#term"));
+
+let ws, retry = 0;
+function connect() {
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(`${proto}://${location.host}/api/panes/${encodeURIComponent(paneId)}/ws`);
+  ws.binaryType = "arraybuffer";
+  ws.onopen = () => { retry = 0; resize(); };
+  ws.onmessage = (e) => term.write(new Uint8Array(e.data));
+  ws.onclose = () => { $("#sub").textContent = "disconnected — retrying"; setTimeout(connect, Math.min(1000 * 2 ** retry++, 10000)); };
+}
+term.onData((d) => ws?.readyState === 1 && ws.send(new TextEncoder().encode(d)));
+term.onBinary((d) => ws?.readyState === 1 && ws.send(Uint8Array.from(d, (c) => c.charCodeAt(0))));
+
+function resize() {
+  fit.fit();
+  if (ws?.readyState === 1) ws.send(JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }));
+}
+new ResizeObserver(resize).observe($("#term"));
+visualViewport?.addEventListener("resize", resize);
+
+$("#fontBtn").onclick = () => {
+  fontSize = fontSize >= 16 ? 10 : fontSize + 2;
+  localStorage.setItem("fontSize", fontSize);
+  term.options.fontSize = fontSize; resize();
+};
+
+api(`/api/panes/${encodeURIComponent(paneId)}`).then((p) => {
+  $("#title").firstChild.textContent = p.name || p.label || p.pane_id;
+  $("#sub").textContent = [p.agent, p.foreground_cwd || p.cwd].filter(Boolean).join(" · ");
+  if (p.agent === "claude" || p.agent === "codex") { $("#chatBtn").hidden = false; $("#chatBtn").href = `/chat/${encodeURIComponent(paneId)}`; }
+}).catch((e) => ($("#sub").textContent = e.message));
+connect();
+</script>
+</body>
+</html>
