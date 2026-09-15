@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "herdr-mobile"
-version = "0.1.0"
+version = "0.1.1"
 description = "Mobile-first web UI for Herdr: see your agents, attach to panes, chat with Claude Code and Codex from your phone."
 readme = "README.md"
 license = "MIT"

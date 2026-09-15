@@ -3,7 +3,10 @@
 import json
 import mimetypes
 import os
+import re
+import shlex
 import time
+import unicodedata
 import urllib.parse
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -21,6 +24,22 @@ YOLO_FLAGS = {
     "agy": "--dangerously-skip-permissions",
 }
 AGENT_KINDS = ["claude", "codex", "gemini", "pi", "opencode", "agy", "cline", "copilot", "amp", "shell"]
+
+
+def _agent_name(label: str, existing=()) -> str:
+    """Return a Herdr-safe, unused agent name for a human label."""
+    value = unicodedata.normalize("NFKD", label).encode("ascii", "ignore").decode().lower()
+    value = re.sub(r"[^a-z0-9_-]+", "-", value).strip("-_")
+    if not value or not value[0].isalpha():
+        value = "agent" if not value else f"agent-{value}"
+    value = value[:32].rstrip("-_") or "agent"
+    used = {str(name).casefold() for name in existing if name}
+    candidate, number = value, 2
+    while candidate.casefold() in used:
+        suffix = f"-{number}"
+        candidate = f"{value[:32 - len(suffix)].rstrip('-_') or 'agent'}{suffix}"
+        number += 1
+    return candidate
 
 
 def _projects() -> list[dict]:
@@ -223,13 +242,21 @@ class Handler(BaseHTTPRequestHandler):
         if not os.path.isdir(cwd):
             raise herdr.HerdrError(f"not a directory: {cwd}")
         kind = str(body.get("kind") or "claude")
-        name = str(body.get("name") or os.path.basename(cwd.rstrip("/")) or kind)[:40]
-        r = herdr.workspace_create(cwd, label=name)
-        pane_id = r["root_pane"]["pane_id"]
+        if kind not in AGENT_KINDS:
+            raise herdr.HerdrError(f"unsupported agent kind: {kind}")
+        label = str(body.get("name") or os.path.basename(cwd.rstrip("/")) or kind)
+        args = []
         if kind != "shell":
-            args = [a for a in str(body.get("args") or "").split() if a]
+            name = _agent_name(label, (a.get("name") for a in herdr.agents()))
+            try:
+                args = shlex.split(str(body.get("args") or ""))
+            except ValueError as e:
+                raise herdr.HerdrError(f"invalid extra args: {e}") from e
             if body.get("yolo") and kind in YOLO_FLAGS:
                 args.insert(0, YOLO_FLAGS[kind])
+        r = herdr.workspace_create(cwd, label=label)
+        pane_id = r["root_pane"]["pane_id"]
+        if kind != "shell":
             herdr.agent_start(pane_id, kind, name, args)
         return {"ok": True, "pane_id": pane_id}
 

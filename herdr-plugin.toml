@@ -1,6 +1,6 @@
 id = "herdr-mobile"
 name = "Herdr Mobile"
-version = "0.1.0"
+version = "0.1.1"
 min_herdr_version = "0.8.0"
 description = "Mobile-first web UI: agents, terminals and chat from your phone."
 platforms = ["linux", "macos"]
@@ -16,7 +16,7 @@ id = "url"
 title = "Show mobile URL"
 description = "Show where the mobile UI is listening"
 contexts = ["global"]
-command = ["sh", "scripts/plugin-url.sh"]
+command = ["sh", "scripts/plugin-start.sh", "--url"]
 
 [[actions]]
 id = "restart"

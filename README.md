@@ -36,10 +36,13 @@ herdr
 
 ```sh
 herdr plugin install carsol/herdr-mobile
+herdr plugin action invoke herdr-mobile.restart
+herdr plugin action invoke herdr-mobile.url
 ```
 
-The plugin starts the web UI with Herdr. Run **Show mobile URL** from Herdr's
-plugin actions, or open `http://127.0.0.1:9080` on the same machine.
+The second command starts it immediately; after that it starts automatically
+with Herdr. The last command prints the URL and shows it in Herdr. You can also
+run **Show mobile URL** from Herdr's plugin actions.
 
 For development, run it directly from a checkout:
 
@@ -49,9 +52,16 @@ cd herdr-mobile
 python3 -m herdr_mobile
 ```
 
-To reach it from a phone, set `HERDR_MOBILE_HOST` to your Tailscale IP (or
-`0.0.0.0`) and set `HERDR_MOBILE_PASSCODE` before starting the app. Do not
-expose port 9080 directly to the internet.
+To reach it from a phone, create an `env` file in the directory printed by
+`herdr plugin config-dir herdr-mobile`:
+
+```sh
+HERDR_MOBILE_HOST=0.0.0.0
+HERDR_MOBILE_PASSCODE=choose-a-long-random-passcode
+```
+
+Then run the restart and URL commands above. Do not expose the port directly
+to the internet; use Tailscale, WireGuard, or an SSH tunnel.
 
 ## Configuration
 
@@ -60,12 +70,13 @@ Everything is an environment variable:
 | Variable | Default | Meaning |
 |---|---|---|
 | `HERDR_MOBILE_HOST` | `127.0.0.1` | Bind address. Use `0.0.0.0` (or your Tailscale IP) to reach it from a phone. |
-| `HERDR_MOBILE_PORT` | `9080` | Port. |
+| `HERDR_MOBILE_PORT` | `9080` | Port. Named Herdr sessions get a stable distinct port unless this is set. |
 | `HERDR_MOBILE_PASSCODE` | *(unset)* | Require this passcode. Strongly recommended when not bound to localhost. |
 | `HERDR_MOBILE_ROOTS` | *(unset)* | Colon-separated directories whose children populate the "Directory" picker. |
 | `HERDR_MOBILE_TAKEOVER` | `1` | Pass `--takeover` when attaching so the phone gets input control. Set `0` to observe only. |
 | `HERDR_SOCKET_PATH` / `HERDR_SESSION` | Herdr defaults | Which Herdr server to talk to. |
 | `HERDR_BIN_PATH` | `herdr` | Path to the herdr binary. |
+| `HERDR_MOBILE_PYTHON` | `python3` | Python 3.10+ executable used by the plugin. |
 
 ## Security
 
